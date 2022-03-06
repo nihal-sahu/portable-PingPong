@@ -11,10 +11,12 @@ void StartDefaultTask(void *argument);
 int uart2_write(int ch);
 int __io_putchar(int ch);		//reroutes printf to uart communication
 void data_transfer(void *pvParameters);
+void green_press(void *pvParameters);
+void yellow_press(void *pvParameters);
 
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
-uint8_t MasterSend, MasterReceive;
+uint8_t MasterSend = 0, MasterReceive;
 
 uint16_t led_arr[13] = {
 		GPIO_PIN_0,
@@ -46,43 +48,45 @@ int main(void)
   //start button
   while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13));
 
-  //led testing loop
-  while (1)
-  {
-	  for (uint8_t i = 0; i < 13; ++i)
-	  {
-		  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
-
-		  if (i > 0)
-			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
-
-		  if (i == 12)
-			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
-
-		  HAL_Delay(100);
-
-	  }
-
-	  for (uint8_t i = 13; i > 0; --i)
-	  {
-		  HAL_GPIO_TogglePin(GPIOB, led_arr[i-1]);
-
-		  if ((i -1) != 12)
-			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
-
-		  if ((i - 1) == 0)
-			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
-
-		  HAL_Delay(100);
-	  }
-  }
-
-
-//  xTaskCreate(data_transfer, "Data Transfer", 200, NULL, 1, NULL);		  //task for SPI data communication
+//  //led testing loop
+//  while (1)
+//  {
+//	  for (uint8_t i = 0; i < 13; ++i)
+//	  {
+//		  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
 //
+//		  if (i > 0)
+//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
 //
-//  //start the scheduler
-//  vTaskStartScheduler();
+//		  if (i == 12)
+//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+//
+//		  HAL_Delay(100);
+//
+//	  }
+//
+//	  for (uint8_t i = 13; i > 0; --i)
+//	  {
+//		  HAL_GPIO_TogglePin(GPIOB, led_arr[i-1]);
+//
+//		  if ((i -1) != 12)
+//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+//
+//		  if ((i - 1) == 0)
+//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+//
+//		  HAL_Delay(100);
+//	  }
+//  }
+
+
+  xTaskCreate(data_transfer, "Data Transfer", 100, NULL, 1, NULL);		  //task for SPI data communication
+  xTaskCreate(green_press, "Green Press", 100, NULL, 1, NULL);
+  xTaskCreate(yellow_press, "Yellow Press", 100, NULL, 1, NULL);
+
+
+  //start the scheduler
+  vTaskStartScheduler();
 
   while (1);
 
@@ -91,15 +95,55 @@ int main(void)
 
 void data_transfer(void *pvParameters)
 {
+	TickType_t xLastWakeTime;
+	const TickType_t xPeriod = pdMS_TO_TICKS(250);
+
+	xLastWakeTime = xTaskGetTickCount();	//checks for SPI data periodically
+
 	while (1)
 	{
-		MasterSend = (rand() % (100 - 0 + 1));
+		vTaskDelayUntil(&xLastWakeTime, xPeriod);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 		HAL_SPI_Transmit(&hspi1, (uint8_t*)&MasterSend, 1, 10);
 		HAL_SPI_Receive(&hspi1, (uint8_t*)&MasterReceive, 1, 10);
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-		HAL_Delay(500);
+		vTaskDelay(pdMS_TO_TICKS(10));
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+
 		printf("%d\n\r", MasterReceive);
+	}
+}
+
+int counter = 0;
+void green_press(void *pvParameters)
+{
+	while (1)
+	{
+		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2))
+		{
+			MasterSend = 1;
+		}
+
+	}
+}
+
+void yellow_press(void *pvParameters)
+{
+//	while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_14))
+//	{
+//		counter++;
+//	}
+//	MasterSend = 1;
+//	while (!HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_15))
+//	{
+//		MasterSend = 2;
+//	}
+
+	while (1)
+	{
+		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_3))
+		{
+			MasterSend = 2;
+		}
 	}
 }
 
@@ -222,11 +266,11 @@ static void MX_GPIO_Init(void)
                           |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8
                           |GPIO_PIN_9, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
+  /*Configure GPIO pin : B1_Pin, Green Button, yellow Button */
+  GPIO_InitStruct.Pin = B1_Pin|GPIO_PIN_2|GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
@@ -248,16 +292,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-}
-
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
-{
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
