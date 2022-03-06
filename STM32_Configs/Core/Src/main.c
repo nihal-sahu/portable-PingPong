@@ -52,12 +52,27 @@ int main(void)
 	  for (uint8_t i = 0; i < 13; ++i)
 	  {
 		  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+		  if (i > 0)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+
+		  if (i == 12)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
 		  HAL_Delay(100);
+
 	  }
 
 	  for (uint8_t i = 13; i > 0; --i)
 	  {
 		  HAL_GPIO_TogglePin(GPIOB, led_arr[i-1]);
+
+		  if ((i -1) != 12)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+		  if ((i - 1) == 0)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+
 		  HAL_Delay(100);
 	  }
   }
