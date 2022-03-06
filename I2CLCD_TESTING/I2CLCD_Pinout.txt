@@ -1,0 +1,5 @@
+I2C LCD Screen:           Arduino Uno:
+GND 		--->	  GND
+VCC:		--->	  5V
+SDA:		--->	  A4
+SCL:		--->      A5
