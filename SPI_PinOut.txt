@@ -1,0 +1,6 @@
+STM32 Nucleo:             Arduino Uno:
+MOSI1/SDI1 - PA7   --->   11 - MOSI
+MISO1/SDO1 - PA6   --->   12 - MISO
+SCK1	   - PA5   --->   13 - SCK
+CS1/SS1	   - PA4   --->   10 - CS/SS
+             GND   --->   GND
