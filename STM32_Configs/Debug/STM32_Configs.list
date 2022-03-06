@@ -27,9 +27,9 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  00020074  2**0
                   CONTENTS, READONLY
- 12 .debug_info   0001e2fb  00000000  00000000  000200a4  2**0
+ 12 .debug_info   0001e2f8  00000000  00000000  000200a4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 00003a0f  00000000  00000000  0003e39f  2**0
+ 13 .debug_abbrev 00003a0f  00000000  00000000  0003e39c  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  14 .debug_aranges 000016f0  00000000  00000000  00041db0  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -37,13 +37,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00004db2  00000000  00000000  00044a48  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   0001875f  00000000  00000000  000497fa  2**0
+ 17 .debug_line   0001875d  00000000  00000000  000497fa  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    0009afba  00000000  00000000  00061f59  2**0
+ 18 .debug_str    0009afba  00000000  00000000  00061f57  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000053  00000000  00000000  000fcf13  2**0
+ 19 .comment      00000053  00000000  00000000  000fcf11  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  000068c4  00000000  00000000  000fcf68  2**2
+ 20 .debug_frame  000068c4  00000000  00000000  000fcf64  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -512,8 +512,8 @@ void data_transfer(void *pvParameters)
  8000614:	af00      	add	r7, sp, #0
  8000616:	6078      	str	r0, [r7, #4]
 	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(250);
- 8000618:	23fa      	movs	r3, #250	; 0xfa
+	const TickType_t xPeriod = pdMS_TO_TICKS(90);
+ 8000618:	235a      	movs	r3, #90	; 0x5a
  800061a:	60fb      	str	r3, [r7, #12]
 
 	xLastWakeTime = xTaskGetTickCount();	//checks for SPI data periodically
@@ -579,9 +579,6 @@ void green_press(void *pvParameters)
  8000686:	b082      	sub	sp, #8
  8000688:	af00      	add	r7, sp, #0
  800068a:	6078      	str	r0, [r7, #4]
-//		MasterSend = 2;
-//	}
-
 	while (1)
 	{
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2))

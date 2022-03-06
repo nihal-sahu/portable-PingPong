@@ -16,8 +16,9 @@ void yellow_press(void *pvParameters);
 
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
-uint8_t MasterSend = 0, MasterReceive;
+TaskHandle_t green_handle, yellow_handle, greenToYellow, yellowToGreen;
 
+uint8_t MasterSend = 0, MasterReceive;
 uint16_t led_arr[13] = {
 		GPIO_PIN_0,
 		GPIO_PIN_1,
@@ -81,8 +82,10 @@ int main(void)
 
 
   xTaskCreate(data_transfer, "Data Transfer", 100, NULL, 1, NULL);		  //task for SPI data communication
-  xTaskCreate(green_press, "Green Press", 100, NULL, 1, NULL);
-  xTaskCreate(yellow_press, "Yellow Press", 100, NULL, 1, NULL);
+  xTaskCreate(green_press, "Green Press", 100, NULL, 1, &green_handle);
+  xTaskCreate(yellow_press, "Yellow Press", 100, NULL, 1, &yellow_handle);
+  xTaskCreate(led_greenToYellow, "LED Green to Yellow", 100, NULL, 1, &greenToYellow);
+  xTaskCreate(led_yellowToGreen, "LED Yellow to Green", 100, NULL, 1, &yellow_handle);
 
 
   //start the scheduler
@@ -96,7 +99,7 @@ int main(void)
 void data_transfer(void *pvParameters)
 {
 	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(250);
+	const TickType_t xPeriod = pdMS_TO_TICKS(90);
 
 	xLastWakeTime = xTaskGetTickCount();	//checks for SPI data periodically
 
@@ -128,15 +131,6 @@ void green_press(void *pvParameters)
 
 void yellow_press(void *pvParameters)
 {
-//	while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_14))
-//	{
-//		counter++;
-//	}
-//	MasterSend = 1;
-//	while (!HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_15))
-//	{
-//		MasterSend = 2;
-//	}
 
 	while (1)
 	{
