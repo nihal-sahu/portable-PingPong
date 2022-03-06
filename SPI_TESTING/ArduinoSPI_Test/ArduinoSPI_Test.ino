@@ -20,7 +20,6 @@ SPI.attachInterrupt();
 /* SPI ISR */
 ISR (SPI_STC_vect)
 {
-/* Value received from master STM32F103C8T6 is stored in variable slaveReceive */
 slaveReceive = SPDR;
 received = true;
 }
