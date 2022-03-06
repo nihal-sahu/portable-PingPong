@@ -1,18 +1,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "main.h"
-
-SPI_HandleTypeDef hspi1;
-UART_HandleTypeDef huart2;
+#include "cmsis_os.h"
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
+void StartDefaultTask(void *argument);
 int uart2_write(int ch);
 int __io_putchar(int ch);		//reroutes printf to uart communication
+void data_transfer(void *pvParameters);
 
+SPI_HandleTypeDef hspi1;
+UART_HandleTypeDef huart2;
 uint8_t MasterSend, MasterReceive;
+
+uint16_t led_arr[13] = {
+		GPIO_PIN_0,
+		GPIO_PIN_1,
+		GPIO_PIN_2,
+		GPIO_PIN_12,
+		GPIO_PIN_13,
+		GPIO_PIN_14,
+		GPIO_PIN_10,
+		GPIO_PIN_4,
+		GPIO_PIN_5,
+		GPIO_PIN_6,
+		GPIO_PIN_7,
+		GPIO_PIN_8,
+		GPIO_PIN_9,
+};
 
 int main(void)
 {
@@ -22,20 +40,67 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_SPI1_Init();
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);		//writing CS pin to default as high
 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+  //CREATING RTOS TASKS
+  //start button
+  while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13));
 
+  //led testing loop
   while (1)
   {
-	  MasterSend = (rand() % (100 - 0 + 1));
-	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-	  HAL_SPI_Transmit(&hspi1, (uint8_t*)&MasterSend, 1, 10);
-	  HAL_SPI_Receive(&hspi1, (uint8_t*)&MasterReceive, 1, 10);
-	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-	  HAL_Delay(500);
-	  printf("%d\n\r", MasterReceive);
+	  for (uint8_t i = 0; i < 13; ++i)
+	  {
+		  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+		  if (i > 0)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+
+		  if (i == 12)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+		  HAL_Delay(100);
+
+	  }
+
+	  for (uint8_t i = 13; i > 0; --i)
+	  {
+		  HAL_GPIO_TogglePin(GPIOB, led_arr[i-1]);
+
+		  if ((i -1) != 12)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+		  if ((i - 1) == 0)
+			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+
+		  HAL_Delay(100);
+	  }
   }
 
+
+//  xTaskCreate(data_transfer, "Data Transfer", 200, NULL, 1, NULL);		  //task for SPI data communication
+//
+//
+//  //start the scheduler
+//  vTaskStartScheduler();
+
+  while (1);
+
+  return 0;
+}
+
+void data_transfer(void *pvParameters)
+{
+	while (1)
+	{
+		MasterSend = (rand() % (100 - 0 + 1));
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+		HAL_SPI_Transmit(&hspi1, (uint8_t*)&MasterSend, 1, 10);
+		HAL_SPI_Receive(&hspi1, (uint8_t*)&MasterReceive, 1, 10);
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+		HAL_Delay(500);
+		printf("%d\n\r", MasterReceive);
+	}
 }
 
 //rerouting printf more efficiently
@@ -50,10 +115,10 @@ int uart2_write(int ch)
 //outputs to serial monitor
 int __io_putchar(int ch)
 {
-//	HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, 0xFFFF);
 	uart2_write(ch);
 	return ch;
 }
+
 
 void SystemClock_Config(void)
 {
@@ -116,6 +181,7 @@ static void MX_SPI1_Init(void)
   }
 }
 
+
 void SPI1_IRQHandler(void)
 {
 	HAL_SPI_IRQHandler(&hspi1);
@@ -150,6 +216,12 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_12
+                          |GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_10|GPIO_PIN_4
+                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8
+                          |GPIO_PIN_9, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -163,6 +235,29 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PB0 PB1 PB2 PB12
+                           PB13 PB14 PB15 PB4
+                           PB5 PB6 PB7 PB8
+                           PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_12
+                          |GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_10|GPIO_PIN_4
+                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8
+                          |GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+}
+
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -174,18 +269,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void Error_Handler(void)
 {
-
   __disable_irq();
-  while (1)
-  {
-  }
-
+  while (1);
 }
 
 #ifdef  USE_FULL_ASSERT
-
 void assert_failed(uint8_t *file, uint32_t line)
 {
-
 }
-#endif /* USE_FULL_ASSERT */
+#endif
+
