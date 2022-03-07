@@ -21,6 +21,7 @@ void setup()
   //lcd setup
   lcd.init();
   lcd.backlight();
+  lcd.print("test");
 }
 
 /* SPI ISR */
@@ -40,15 +41,16 @@ void loop()
   if(received == true)
   {
     Serial.println(int(slaveReceive));
-    display_data();
+
     delay(250);
     received = false;
   }
+
+      display_data();
 }
 
 void display_data()
 {
-  lcd.clear();
   lcd.setCursor(0, 0);
   if (slaveReceive == 1)
     lcd.print("Green!");
