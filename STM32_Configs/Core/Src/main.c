@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include "main.h"
 #include "cmsis_os.h"
@@ -11,12 +12,14 @@ void StartDefaultTask(void *argument);
 int uart2_write(int ch);
 int __io_putchar(int ch);		//reroutes printf to uart communication
 void data_transfer(void *pvParameters);
-void green_press(void *pvParameters);
-void yellow_press(void *pvParameters);
+void led_pattern(void *pvParameters);
+void green_press(void);
+void yellow_press(void);
+void checkConditions(void);
 
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
-TaskHandle_t green_handle, yellow_handle, greenToYellow, yellowToGreen;
+TaskHandle_t led_handle;
 
 uint8_t MasterSend = 0, MasterReceive;
 uint16_t led_arr[13] = {
@@ -34,6 +37,8 @@ uint16_t led_arr[13] = {
 		GPIO_PIN_8,
 		GPIO_PIN_9,
 };
+uint16_t delay_time = 500;
+bool startPhase = false;
 
 int main(void)
 {
@@ -49,43 +54,9 @@ int main(void)
   //start button
   while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13));
 
-//  //led testing loop
-//  while (1)
-//  {
-//	  for (uint8_t i = 0; i < 13; ++i)
-//	  {
-//		  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
-//
-//		  if (i > 0)
-//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
-//
-//		  if (i == 12)
-//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
-//
-//		  HAL_Delay(100);
-//
-//	  }
-//
-//	  for (uint8_t i = 13; i > 0; --i)
-//	  {
-//		  HAL_GPIO_TogglePin(GPIOB, led_arr[i-1]);
-//
-//		  if ((i -1) != 12)
-//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
-//
-//		  if ((i - 1) == 0)
-//			  HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
-//
-//		  HAL_Delay(100);
-//	  }
-//  }
-
-
   xTaskCreate(data_transfer, "Data Transfer", 100, NULL, 1, NULL);		  //task for SPI data communication
-  xTaskCreate(green_press, "Green Press", 100, NULL, 1, &green_handle);
-  xTaskCreate(yellow_press, "Yellow Press", 100, NULL, 1, &yellow_handle);
-  xTaskCreate(led_greenToYellow, "LED Green to Yellow", 100, NULL, 1, &greenToYellow);
-  xTaskCreate(led_yellowToGreen, "LED Yellow to Green", 100, NULL, 1, &yellow_handle);
+  xTaskCreate(led_pattern, "LED Pattern", 100, NULL, 1, &led_handle);
+
 
 
   //start the scheduler
@@ -98,46 +69,126 @@ int main(void)
 
 void data_transfer(void *pvParameters)
 {
-	TickType_t xLastWakeTime;
-	const TickType_t xPeriod = pdMS_TO_TICKS(90);
-
-	xLastWakeTime = xTaskGetTickCount();	//checks for SPI data periodically
-
 	while (1)
 	{
-		vTaskDelayUntil(&xLastWakeTime, xPeriod);
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 		HAL_SPI_Transmit(&hspi1, (uint8_t*)&MasterSend, 1, 10);
 		HAL_SPI_Receive(&hspi1, (uint8_t*)&MasterReceive, 1, 10);
-		vTaskDelay(pdMS_TO_TICKS(10));
+		vTaskDelay(pdMS_TO_TICKS(500));
 		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
 
 		printf("%d\n\r", MasterReceive);
 	}
 }
 
-int counter = 0;
-void green_press(void *pvParameters)
+void led_pattern(void *pvParameters)
 {
+	  //led loop
 	while (1)
 	{
-		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2))
+		for (uint8_t i = 0; i < 13; ++i)
 		{
-			MasterSend = 1;
+			HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+			if (i > 0)
+				HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+
+			if (i == 12)
+			{
+				green_press();
+				checkConditions();
+				HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+				if (!startPhase)
+				{
+					delay_time -= 30;
+				}
+			}
+
+			vTaskDelay(pdMS_TO_TICKS(delay_time));
+
 		}
 
-	}
+		if (startPhase)
+		{
+			startPhase = false;
+			delay_time = 500;
+			break;
+		}
+
+		for (uint8_t i = 13; i > 0; --i)
+		{
+			HAL_GPIO_TogglePin(GPIOB, led_arr[i-1]);
+
+			if ((i -1) != 12)
+				HAL_GPIO_TogglePin(GPIOB, led_arr[i]);
+
+			if ((i - 1) == 0)
+			{
+				yellow_press();
+				checkConditions();
+				HAL_GPIO_TogglePin(GPIOB, led_arr[i - 1]);
+
+				if (!startPhase)
+				{
+					delay_time -= 30;
+				}
+			}
+
+			vTaskDelay(pdMS_TO_TICKS(delay_time));
+		}
+
+		if (startPhase)
+		{
+			startPhase = false;
+			delay_time = 500;
+			break;
+		}
+	  }
 }
 
-void yellow_press(void *pvParameters)
+void green_press(void)
 {
+	uint32_t startTime = HAL_GetTick();
+	uint32_t currentTime = HAL_GetTick();
 
-	while (1)
+	while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2) != 0)
 	{
-		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_3))
+		currentTime = HAL_GetTick();
+		if (currentTime - startTime == delay_time)
 		{
-			MasterSend = 2;
+			MasterSend = 3;
+			return;
 		}
+	}
+
+	MasterSend = 1;
+}
+
+void yellow_press(void)
+{
+	uint32_t startTime = HAL_GetTick();
+	uint32_t currentTime = HAL_GetTick();
+
+	while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_3) != 0)
+	{
+		currentTime = HAL_GetTick();
+		if (currentTime - startTime == delay_time)
+		{
+			MasterSend = 4;
+			return;
+		}
+	}
+
+	MasterSend = 2;
+}
+
+void checkConditions(void)
+{
+	if (MasterSend == 3 || MasterSend == 4)
+	{
+		startPhase = true;
+		HAL_Delay(1000);
 	}
 }
 
