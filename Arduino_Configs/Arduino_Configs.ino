@@ -36,8 +36,6 @@ void loop()
   slaveSend = 65;
   SPDR = slaveSend;
   
-
-  
   if(received == true)
   {
     Serial.println(int(slaveReceive));
@@ -51,9 +49,23 @@ void loop()
 
 void display_data()
 {
+  lcd.clear();
   lcd.setCursor(0, 0);
-  if (slaveReceive == 1)
-    lcd.print("Green!");
+  
+  if (slaveReceive == 0)
+    lcd.print("Press the blue button to start.");
+  else if (slaveReceive == 1)
+    lcd.print("Green is in the lead!");
   else if (slaveReceive == 2)
-    lcd.print("Yellow!");
+    lcd.print("Yellow is in the lead!");
+  else if (slaveReceive == 3)
+    lcd.print("Yellow gained a point!");
+  else if (slaveReceive == 4)
+    lcd.print("Green gained a point!");
+  else if (slaveReceive == 5)
+    lcd.print("Game over! Press black button to restart");
+  else if (slaveReceive == 6)
+    lcd.print("Score is tied.");
+
+  lcd.scrollDisplayRight();
 }
