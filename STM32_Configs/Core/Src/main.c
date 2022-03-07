@@ -38,6 +38,7 @@ uint16_t led_arr[13] = {
 		GPIO_PIN_9,
 };
 uint16_t delay_time = 500;
+uint16_t greenScore = 0, yellowScore = 0;
 bool startPhase = false;
 
 int main(void)
@@ -162,7 +163,12 @@ void green_press(void)
 		}
 	}
 
-	MasterSend = 1;
+	if (greenScore > yellowScore)
+		MasterSend = 1;
+	else if (greenScore == yellowScore)
+		MasterSend = 6;
+	else if (yellowScore > greenScore)
+		MasterSend = 2;
 }
 
 void yellow_press(void)
@@ -180,7 +186,12 @@ void yellow_press(void)
 		}
 	}
 
-	MasterSend = 2;
+	if (greenScore > yellowScore)
+		MasterSend = 1;
+	else if (greenScore == yellowScore)
+		MasterSend = 6;
+	else if (yellowScore > greenScore)
+		MasterSend = 2;
 }
 
 void checkConditions(void)
@@ -188,7 +199,20 @@ void checkConditions(void)
 	if (MasterSend == 3 || MasterSend == 4)
 	{
 		startPhase = true;
+
+		if (MasterSend == 3)
+			yellowScore++;
+		else
+			greenScore++;
+
+		if (yellowScore == 10 || greenScore == 10)
+		{
+			vTaskSuspend(led_handle);		//suspend led task if game is won by a player
+			MasterSend = 5;
+		}
+
 		HAL_Delay(1000);
+
 	}
 }
 
